@@ -1,6 +1,6 @@
 # php-aho
 
-php-aho is a small wrapper for the [multifast](http://multifast.sourceforge.net/)'s [Aho–Corasick algorithm](https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm).
+php-aho is a PHP Extension for the [multifast](http://multifast.sourceforge.net/)'s [Aho–Corasick algorithm](https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm).
 
 ## Installation
 ```
