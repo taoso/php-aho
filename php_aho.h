@@ -41,8 +41,8 @@ extern zend_module_entry aho_module_entry;
 #include "ahocorasick.h"
 
 ZEND_BEGIN_MODULE_GLOBALS(aho)
-	zend_long  global_value;
-	char *global_string;
+	zend_bool enabled;
+	char *dict;
 	AC_TRIE_t *trie;
 ZEND_END_MODULE_GLOBALS(aho)
 

@@ -34,25 +34,25 @@ static int le_aho;
 /* {{{ PHP_INI
  */
 PHP_INI_BEGIN()
-    STD_PHP_INI_ENTRY("aho.global_value",      "42", PHP_INI_ALL, OnUpdateLong, global_value, zend_aho_globals, aho_globals)
-    STD_PHP_INI_ENTRY("aho.global_string", "foobar", PHP_INI_ALL, OnUpdateString, global_string, zend_aho_globals, aho_globals)
+    STD_PHP_INI_ENTRY("aho.enabled", "On",  PHP_INI_ALL, OnUpdateBool, enabled, zend_aho_globals, aho_globals)
+    STD_PHP_INI_ENTRY("aho.dict",    NULL, PHP_INI_ALL, OnUpdateStringUnempty, dict, zend_aho_globals, aho_globals)
 PHP_INI_END()
 /* }}} */
 
 /* Every user-visible function in PHP should document itself in the source */
-/* {{{ proto string confirm_aho_compiled(string arg)
+/* {{{ proto string aho_hello(string msg)
    Return a string to confirm that the module is compiled in */
-PHP_FUNCTION(confirm_aho_compiled)
+PHP_FUNCTION(aho_hello)
 {
-	char *arg = NULL;
-	size_t arg_len, len;
+	char *msg = NULL;
+	size_t msg_len, len;
 	zend_string *strg;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &arg, &arg_len) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &msg, &msg_len) == FAILURE) {
 		return;
 	}
 
-	strg = strpprintf(0, "Congratulations! You have successfully modified ext/%.78s/config.m4. Module %.78s is now compiled into PHP.", "aho", arg);
+	strg = strpprintf(0, "hello %.78s and enabled is %d and dict is %s.", msg, AHO_G(enabled), AHO_G(dict));
 
 	RETURN_STR(strg);
 }
@@ -62,8 +62,8 @@ PHP_FUNCTION(confirm_aho_compiled)
  */
 static void php_aho_init_globals(zend_aho_globals *aho_globals)
 {
-	aho_globals->global_value = 0;
-	aho_globals->global_string = NULL;
+	aho_globals->enabled = 1;
+	aho_globals->dict = NULL;
 }
 /* }}} */
 
@@ -96,9 +96,7 @@ PHP_MINFO_FUNCTION(aho)
 	php_info_print_table_header(2, "aho support", "enabled");
 	php_info_print_table_end();
 
-	/* Remove comments if you have entries in php.ini
 	DISPLAY_INI_ENTRIES();
-	*/
 }
 /* }}} */
 
@@ -107,7 +105,7 @@ PHP_MINFO_FUNCTION(aho)
  * Every user visible function must have an entry in aho_functions[].
  */
 const zend_function_entry aho_functions[] = {
-	PHP_FE(confirm_aho_compiled,	NULL)		/* For testing, remove later. */
+	PHP_FE(aho_hello, NULL)
 	PHP_FE_END	/* Must be the last line in aho_functions[] */
 };
 /* }}} */
