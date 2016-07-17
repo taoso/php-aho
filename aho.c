@@ -22,6 +22,8 @@
 #include "config.h"
 #endif
 
+#include <stdio.h>
+#include <string.h>
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
@@ -40,21 +42,49 @@ PHP_INI_END()
 /* }}} */
 
 /* Every user-visible function in PHP should document itself in the source */
-/* {{{ proto string aho_hello(string msg)
+/* {{{ proto string aho_match(string subject)
    Return a string to confirm that the module is compiled in */
-PHP_FUNCTION(aho_hello)
+PHP_FUNCTION(aho_match)
 {
-	char *msg = NULL;
-	size_t msg_len, len;
-	zend_string *strg;
+	zend_string *subject;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &msg, &msg_len) == FAILURE) {
-		return;
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &subject) == FAILURE) {
+		RETURN_FALSE;
 	}
 
-	strg = strpprintf(0, "hello %.78s and enabled is %d and dict is %s.", msg, AHO_G(enabled), AHO_G(dict));
+	AC_TEXT_t chunk;
+	chunk.astring = ZSTR_VAL(subject);
+	chunk.length = ZSTR_LEN(subject);
+	ac_trie_settext(AHO_G(trie), &chunk, 0);
 
-	RETURN_STR(strg);
+	array_init(return_value);
+
+	AC_MATCH_t match;
+	zval *patterns;
+	zval tmp;
+	while ((match = ac_trie_findnext(AHO_G(trie))).size) {
+		patterns = (zval *)safe_emalloc(match.size, sizeof(zval), 0);
+		for (int i = 0; i < match.size; i++) {
+			array_init_size(&patterns[i], 3);
+			AC_PATTERN_t *pp = &match.patterns[i];
+
+			ZVAL_LONG(&tmp, match.position - pp->ptext.length);
+			zend_hash_next_index_insert_new(Z_ARRVAL(patterns[i]), &tmp);
+
+			ZVAL_STRINGL(&tmp, pp->ptext.astring, pp->ptext.length);
+			zend_hash_next_index_insert_new(Z_ARRVAL(patterns[i]), &tmp);
+
+			if (pp->id.u.stringy) {
+				ZVAL_STRINGL(&tmp, pp->id.u.stringy, strlen(pp->id.u.stringy));
+			} else {
+				ZVAL_NULL(&tmp);
+			}
+
+			zend_hash_next_index_insert_new(Z_ARRVAL(patterns[i]), &tmp);
+
+			zend_hash_next_index_insert_new(Z_ARRVAL(*return_value), &patterns[i]);
+		}
+	}
 }
 /* }}} */
 
@@ -71,8 +101,54 @@ static void php_aho_init_globals(zend_aho_globals *aho_globals)
  */
 PHP_MINIT_FUNCTION(aho)
 {
-	AHO_G(trie) = ac_trie_create();
+	char *line = NULL;
+	size_t linecap = 0;
+	ssize_t linelen;
+
 	REGISTER_INI_ENTRIES();
+
+	FILE *fp = fopen(AHO_G(dict), "r");
+	if (!fp) {
+		return FAILURE;
+	}
+
+	AHO_G(trie) = ac_trie_create();
+
+	char *delim = NULL;
+	AC_PATTERN_t patt;
+	patt.rtext.astring = NULL;
+	patt.rtext.length = 0;
+	char *astring = NULL;
+	char *tstring = "";
+
+	while ((linelen = getline(&line, &linecap, fp)) > 0) {
+		if (line[linelen - 1] == '\n') line[--linelen] = '\0';
+		if (line[linelen - 1] == '\r') line[--linelen] = '\0';
+		delim = strrchr(line, '`');
+
+		if (delim) {
+			*delim = '\0';
+
+			astring = line;
+			tstring = ++delim;
+		} else {
+			astring = line;
+		}
+
+		patt.ptext.astring = line;
+		patt.ptext.length = strlen(line);
+		patt.id.u.stringy = tstring;
+		patt.id.type = AC_PATTID_TYPE_STRING;
+
+		ac_trie_add(AHO_G(trie), &patt, 1);
+		tstring = "";
+	}
+
+	ac_trie_finalize(AHO_G(trie));
+
+	fclose(fp);
+	free(line);
+
 	return SUCCESS;
 }
 /* }}} */
@@ -105,8 +181,8 @@ PHP_MINFO_FUNCTION(aho)
  * Every user visible function must have an entry in aho_functions[].
  */
 const zend_function_entry aho_functions[] = {
-	PHP_FE(aho_hello, NULL)
-	PHP_FE_END	/* Must be the last line in aho_functions[] */
+	PHP_FE(aho_match, NULL)
+		PHP_FE_END	/* Must be the last line in aho_functions[] */
 };
 /* }}} */
 
