@@ -47,22 +47,40 @@ PHP_INI_END()
 PHP_FUNCTION(aho_match)
 {
 	zend_string *subject;
+	zval *matches = NULL;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &subject) == FAILURE) {
+#define FAST_ZPP 1
+#ifndef FAST_ZPP
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|z/", &subject, &matches) == FAILURE) {
 		RETURN_FALSE;
 	}
+#else
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_STR(subject)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_ZVAL_EX(matches, 0, 1)
+	ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+	printf("foo\n");
+#endif
 
 	AC_TEXT_t chunk;
 	chunk.astring = ZSTR_VAL(subject);
 	chunk.length = ZSTR_LEN(subject);
 	ac_trie_settext(AHO_G(trie), &chunk, 0);
 
-	array_init(return_value);
+	if (matches) {
+		array_init(matches);
+	}
 
 	AC_MATCH_t match;
 	zval *patterns;
 	zval tmp;
+	int count = 0;
 	while ((match = ac_trie_findnext(AHO_G(trie))).size) {
+		count += match.size;
+		if (!matches) {
+			continue;
+		}
 		patterns = (zval *)safe_emalloc(match.size, sizeof(zval), 0);
 		for (int i = 0; i < match.size; i++) {
 			array_init_size(&patterns[i], 3);
@@ -82,9 +100,10 @@ PHP_FUNCTION(aho_match)
 
 			zend_hash_next_index_insert_new(Z_ARRVAL(patterns[i]), &tmp);
 
-			zend_hash_next_index_insert_new(Z_ARRVAL(*return_value), &patterns[i]);
+			zend_hash_next_index_insert_new(Z_ARRVAL(*matches), &patterns[i]);
 		}
 	}
+	RETURN_LONG(count);
 }
 /* }}} */
 
@@ -176,12 +195,17 @@ PHP_MINFO_FUNCTION(aho)
 }
 /* }}} */
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_aho_match, 0, 0, 1)
+    ZEND_ARG_INFO(0, subject)
+    ZEND_ARG_INFO(1, matches) /* array */
+ZEND_END_ARG_INFO()
+
 /* {{{ aho_functions[]
  *
  * Every user visible function must have an entry in aho_functions[].
  */
 const zend_function_entry aho_functions[] = {
-	PHP_FE(aho_match, NULL)
+	PHP_FE(aho_match, arginfo_aho_match)
 		PHP_FE_END	/* Must be the last line in aho_functions[] */
 };
 /* }}} */

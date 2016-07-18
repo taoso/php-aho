@@ -12,7 +12,7 @@ sudo make install
 
 ## API overview
 
-define `array aho_match(string $subject)` method.
+define `int aho_match(string $subject, &$matches)` method.
 
 ## Usage
 Enable `php-aho` and set dict path in the ini file:
@@ -33,7 +33,9 @@ Use the __`__ as the separator.
 And then:
 ```
 Psy Shell v0.7.2 (PHP 7.0.8 — cli) by Justin Hileman
->>> aho_match ('apple from china make me smile')
+>>> aho_match ('apple from china make me smile', $matches)
+=> 3
+>>> $matches
 => [
      [
        0,        # keyword offset
