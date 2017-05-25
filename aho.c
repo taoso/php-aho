@@ -60,7 +60,6 @@ PHP_FUNCTION(aho_match)
 		Z_PARAM_OPTIONAL
 		Z_PARAM_ZVAL_EX(matches, 0, 1)
 	ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-	printf("foo\n");
 #endif
 
 	AC_TEXT_t chunk;
